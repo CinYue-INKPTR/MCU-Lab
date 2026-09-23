@@ -1,6 +1,6 @@
 /*================================================================================================*/
 // Part 1: Libraries and fixed parameter macro definitions
-#include "INKPTR_OLED.h"
+#include "INKPTR_OLEDiic.h"
 #include "INKPTR_SoftIIC.h"
 #include "ch32v00x.h"
 
@@ -8,9 +8,10 @@
 
 #define OLED_Model_Index_MultiplexRatio 0
 #define OLED_Model_Index_COMPins        1
-#define OLED_Model_Index_Listadjusting  2
-#define OLED_Model_Index_PageMax        3
-#define OLED_Model_Index_ListMax        4
+#define OLED_Model_Index_PageMax        2
+#define OLED_Model_Index_ListMax        3
+
+#define OLED_042ListAdjust              0x1c
 
 #define OLED_CmdRegister                0x00
 #define OLED_DatRegister                0x40
@@ -18,24 +19,26 @@
 #define OLED_MultiplexRatioCmd          0xa8
 #define OLED_COMPinsCmd                 0xda
 #define OLED_AddressingModeCmd          0x20
+#define OLED_ListAreaCmd                0x21
+#define OLED_PageAreaCmd                0x22
 #define OLED_BrightnessCmd              0x81
 
 #define OLED_PointerPageCmd             0xb0
 #define OLED_PointerListCmd_LSN         0x0f
 #define OLED_PointerListCmd_MSN         0x10
 
-#define OLED_RollDerictionLeft          0x80
+#define OLED_RollDerictionLeftFlag      0x80
 #define OLED_RollDerictionCmd_Left      0x27
 #define OLED_RollDerictionCmd_Right     0x26
 
 
 /*================================================================================================*/
 // Part 2: OLED mode parameters
-static const uint8_t OLED_Model_Dat[3][5] =
+static const uint8_t OLED_Model_Dat[3][4] =
 {
-    {0x3f, 0x12, 0x00, 7, 127}, // 128*64 Model
-    {0x1f, 0x02, 0x00, 3, 127}, // 128*32 Model
-    {0x27, 0x12, 0x1c, 4, 71}   // 72*40 Model
+    {0x3f, 0x12, 7, 127}, // 128*64 Model
+    {0x1f, 0x02, 3, 127}, // 128*32 Model
+    {0x27, 0x12, 4, 71}   // 72*40 Model
 };
 static const uint8_t OLED_InitCmd[] =
 {
@@ -128,16 +131,18 @@ void OLED_Brush(uint8_t Page_Begin, uint8_t Page_End, uint8_t List_Begin, uint8_
 {
     uint8_t x, y;
 
-    if(OLED_ValueCheck(Page_Begin, Page_End, List_Begin, List_End))  {return;}
+    if(OLED_ValueCheck(Page_Begin, Page_End, List_Begin, List_End)) {return;}
 
     OLED_Set(OLED_SetMode_OtherOptions, OLED_SetMode_Roll_DISABLE);
 
-    for(y = Page_Begin ; y < Page_End+1 ; y++) {
+    for(y = Page_Begin ; y < (Page_End+1) ; y++)
+    {
         OLED_Cmd();
-        SoftIIC_SendByte(OLED_PointerPageCmd + y);                                                                                   SoftIIC_ReceiveACK();
-        SoftIIC_SendByte(OLED_PointerListCmd_LSN & (List_Begin + OLED_Model_Dat[OLED_Model][OLED_Model_Index_Listadjusting]));       SoftIIC_ReceiveACK();
-        SoftIIC_SendByte(OLED_PointerListCmd_MSN | ((List_Begin + OLED_Model_Dat[OLED_Model][OLED_Model_Index_Listadjusting])>>4));  SoftIIC_ReceiveACK();
+        SoftIIC_SendByte(OLED_PointerPageCmd + y);                  SoftIIC_ReceiveACK();
+        SoftIIC_SendByte(OLED_PointerListCmd_LSN & List_Begin);     SoftIIC_ReceiveACK();
+        SoftIIC_SendByte(OLED_PointerListCmd_MSN | (List_Begin>>4));SoftIIC_ReceiveACK();
         SoftIIC_Stop();
+
         OLED_Dat();
         for(x = List_Begin ; x < (List_End+1) ; x++) {SoftIIC_SendByte(Style_Byte);    SoftIIC_ReceiveACK();}
         SoftIIC_Stop();
@@ -155,7 +160,7 @@ void OLED_Brush(uint8_t Page_Begin, uint8_t Page_End, uint8_t List_Begin, uint8_
  */
 void OLED_Clear(void)
 {
-    OLED_Brush(0, OLED_Model_Dat[OLED_Model][OLED_Model_Index_PageMax], 0, OLED_Model_Dat[OLED_Model][OLED_Model_Index_ListMax], 0x00);
+    OLED_Brush(0, OLED_Model_Dat[OLED_Model][OLED_Model_Index_PageMax], 0, OLED_Model_Dat[OLED_Model][OLED_Model_Index_ListMax], 0);
 }
 
 /**
@@ -176,16 +181,49 @@ void OLED_Draw_CmdHead(uint8_t Page_Begin, uint8_t List_Begin)
     OLED_Set(OLED_SetMode_OtherOptions, OLED_SetMode_Roll_DISABLE);
 
     OLED_Cmd();
-    SoftIIC_SendByte(OLED_PointerPageCmd + Page_Begin);                                                                          SoftIIC_ReceiveACK();
-    SoftIIC_SendByte(OLED_PointerListCmd_LSN & (List_Begin + OLED_Model_Dat[OLED_Model][OLED_Model_Index_Listadjusting]));       SoftIIC_ReceiveACK();
-    SoftIIC_SendByte(OLED_PointerListCmd_MSN | ((List_Begin + OLED_Model_Dat[OLED_Model][OLED_Model_Index_Listadjusting])>>4));  SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(OLED_PointerPageCmd + Page_Begin);             SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(OLED_PointerListCmd_LSN & List_Begin);         SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(OLED_PointerListCmd_MSN | (List_Begin>>4));    SoftIIC_ReceiveACK();
     SoftIIC_Stop();
 
     OLED_Dat();
 }
 
 /**
- * @fn      OLED_Draw_Data
+ * @fn      OLED_Draw_CmdHead_WholeArea
+ *
+ * @brief   Command header for drawing the whole screen, draw starting from the origin of the refresh area.
+ *          Suitable for addressing mode: OLED_AddressingMode_HorizontalMode / OLED_AddressingMode_VerticalMode.
+ *          Later, data will be sent using "OLED_Draw_Data", and it must end with "OLED_Draw_CmdTail"!
+ *
+ * @param   none
+ *
+ * @return  none
+ */
+void OLED_Draw_CmdHead_WholeArea(void)
+{
+    OLED_Cmd();
+    SoftIIC_SendByte(OLED_ListAreaCmd); SoftIIC_ReceiveACK();
+    if(OLED_Model == 2)
+    {
+        SoftIIC_SendByte(OLED_042ListAdjust);                                                       SoftIIC_ReceiveACK();
+        SoftIIC_SendByte(OLED_Model_Dat[OLED_Model][OLED_Model_Index_ListMax] + OLED_042ListAdjust);SoftIIC_ReceiveACK();
+    }
+    else
+    {
+        SoftIIC_SendByte(0);                                                                        SoftIIC_ReceiveACK();
+        SoftIIC_SendByte(OLED_Model_Dat[OLED_Model][OLED_Model_Index_ListMax]);                     SoftIIC_ReceiveACK();
+    }
+    SoftIIC_SendByte(OLED_PageAreaCmd); SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(0);                                                    SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(OLED_Model_Dat[OLED_Model][OLED_Model_Index_PageMax]); SoftIIC_ReceiveACK();
+    SoftIIC_Stop();
+
+    OLED_Dat();
+}
+
+/**
+ * @fn      OLED_Draw_CmdData
  *
  * @brief   Send the drawing data.
  *          This function is used in conjunction with "OLED_Draw_CmdHead".
@@ -194,7 +232,7 @@ void OLED_Draw_CmdHead(uint8_t Page_Begin, uint8_t List_Begin)
  *
  * @return  none
  */
-void OLED_Draw_Data(uint8_t Dat)
+void OLED_Draw_CmdData(uint8_t Dat)
 {
     SoftIIC_SendByte(Dat);
     SoftIIC_ReceiveACK();
@@ -240,8 +278,8 @@ void OLED_Roll(uint8_t Page_Begin, uint8_t Page_End, uint8_t List_Begin, uint8_t
     OLED_Set(OLED_SetMode_OtherOptions, OLED_SetMode_Roll_DISABLE);
 
     OLED_Cmd();
-    if(RollMode & OLED_RollDerictionLeft)   {SoftIIC_SendByte(OLED_RollDerictionCmd_Left);   SoftIIC_ReceiveACK();}
-    else                                    {SoftIIC_SendByte(OLED_RollDerictionCmd_Right);  SoftIIC_ReceiveACK();}
+    if(RollMode & OLED_RollDerictionLeftFlag)   {SoftIIC_SendByte(OLED_RollDerictionCmd_Left);   SoftIIC_ReceiveACK();}
+    else                                        {SoftIIC_SendByte(OLED_RollDerictionCmd_Right);  SoftIIC_ReceiveACK();}
     SoftIIC_SendByte(0);                                 SoftIIC_ReceiveACK();
     SoftIIC_SendByte(Page_Begin);                        SoftIIC_ReceiveACK();
     SoftIIC_SendByte(SpeedTable[RollMode & (~0x80)]);    SoftIIC_ReceiveACK();
@@ -284,12 +322,26 @@ void OLED_Init(OLED_AddressingMode AddressingMode, OLED_SetMode_X_Flip X_FlipMod
 
     OLED_Cmd();
     for(i = 0 ; i < sizeof(OLED_InitCmd) ; i++) {SoftIIC_SendByte(OLED_InitCmd[i]);  SoftIIC_ReceiveACK();}
-    SoftIIC_SendByte(OLED_MultiplexRatioCmd);        SoftIIC_ReceiveACK();
-    SoftIIC_SendByte(OLED_Model_Dat[OLED_Model][0]); SoftIIC_ReceiveACK();
-    SoftIIC_SendByte(OLED_COMPinsCmd);               SoftIIC_ReceiveACK();
-    SoftIIC_SendByte(OLED_Model_Dat[OLED_Model][1]); SoftIIC_ReceiveACK();
-    SoftIIC_SendByte(OLED_AddressingModeCmd);        SoftIIC_ReceiveACK();
-    SoftIIC_SendByte(AddressingMode);                SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(OLED_MultiplexRatioCmd);           SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(OLED_Model_Dat[OLED_Model][0]);    SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(OLED_COMPinsCmd);                  SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(OLED_Model_Dat[OLED_Model][1]);    SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(OLED_AddressingModeCmd);           SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(AddressingMode);                   SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(OLED_ListAreaCmd);                 SoftIIC_ReceiveACK();
+    if(OLED_Model == 2)
+    {
+        SoftIIC_SendByte(OLED_042ListAdjust);                                                           SoftIIC_ReceiveACK();
+        SoftIIC_SendByte(OLED_Model_Dat[OLED_Model][OLED_Model_Index_ListMax] + OLED_042ListAdjust);    SoftIIC_ReceiveACK();
+    }
+    else
+    {
+        SoftIIC_SendByte(0);                                                                            SoftIIC_ReceiveACK();
+        SoftIIC_SendByte(OLED_Model_Dat[OLED_Model][OLED_Model_Index_ListMax]);                         SoftIIC_ReceiveACK();
+    }
+    SoftIIC_SendByte(OLED_PageAreaCmd);                                     SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(0);                                                    SoftIIC_ReceiveACK();
+    SoftIIC_SendByte(OLED_Model_Dat[OLED_Model][OLED_Model_Index_PageMax]); SoftIIC_ReceiveACK();
     SoftIIC_Stop();
 
     OLED_Set(OLED_SetMode_Brightness, Brightness);
