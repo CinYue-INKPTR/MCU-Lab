@@ -1,5 +1,5 @@
-#ifndef INKPTR_OLED_H
-#define INKPTR_OLED_H
+#ifndef INKPTR_OLEDiic_H
+#define INKPTR_OLEDiic_H
 
 /*================================================================================================*/
 // Part 1: Library, enumerations, and interface function declarations
@@ -22,7 +22,8 @@ void OLED_Set(OLED_SetMode SetMode, uint8_t Dat);
 void OLED_Brush(uint8_t Page_Begin, uint8_t Page_End, uint8_t List_Begin, uint8_t List_End, uint8_t Style_Byte);
 void OLED_Clear(void);
 void OLED_Draw_CmdHead(uint8_t Page_Begin, uint8_t List_Begin);
-void OLED_Draw_Data(uint8_t Dat);
+void OLED_Draw_CmdHead_WholeArea(void);
+void OLED_Draw_CmdData(uint8_t Dat);
 void OLED_Draw_CmdTail(void);
 void OLED_Roll(uint8_t Page_Begin, uint8_t Page_End, uint8_t List_Begin, uint8_t List_End, OLED_RollMode RollMode);
 void OLED_Init(OLED_AddressingMode AddressingMode, OLED_SetMode_X_Flip X_FlipMode, OLED_SetMode_Y_Flip Y_FlipMode, OLED_SetMode_Color ColorMode, uint8_t Brightness);
@@ -31,8 +32,8 @@ void OLED_Init(OLED_AddressingMode AddressingMode, OLED_SetMode_X_Flip X_FlipMod
 /*================================================================================================*/
 // Part 2: Adjustable parameter macro definition
 #define OLED_Model 0
-// 128*64	> 0
-// 128*32	> 1
-// 72*40	> 2
+// 128*64   > 0
+// 128*32   > 1
+// 72*40    > 2
 
 #endif
