@@ -121,7 +121,7 @@ void SoftSPI_Start(void)
 
 
 /*================================================================================================*/
-// Part 6: Initialization function
+// Part 5: Initialization function
 /**
  * @fn      SoftSPI_Init
  * 
